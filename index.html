@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Eight Academy - Planificador Curricular & Asistente IA 2026-2027</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- SheetJS para importación/exportación de archivos Excel -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col custom-scrollbar">
+
+  <!-- Modal Modal para Avisos -->
+  <div id="custom-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-100 transform transition-all">
+      <div class="flex items-center space-x-3 mb-4">
+        <div id="modal-icon-bg" class="w-10 h-10 rounded-xl flex items-center justify-center bg-indigo-100 text-indigo-600">
+          <i id="modal-icon" class="fa-solid fa-circle-info text-lg"></i>
+        </div>
+        <h3 id="modal-title" class="text-lg font-bold text-slate-800">Notificación</h3>
+      </div>
+      <p id="modal-body" class="text-slate-600 text-xs sm:text-sm mb-6 leading-relaxed"></p>
+      <div class="flex justify-end">
+        <button onclick="closeModal()" class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs rounded-xl transition-all shadow-md">
+          Aceptar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Barra Superior del Sistema Lectivo -->
+  <div class="bg-gradient-to-r from-slate-950 via-indigo-950 to-slate-900 text-white text-xs py-2 px-4 no-print border-b border-indigo-900/50 shadow-md">
+    <div class="max-w-7xl mx-auto flex flex-wrap justify-between items-center gap-2">
+      <div class="flex items-center space-x-3">
+        <span class="bg-emerald-500/20 text-emerald-300 font-extrabold px-3 py-0.5 rounded-full border border-emerald-500/30 flex items-center gap-1.5">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span>Año Lectivo 2026 - 2027</span>
+        </span>
+        <span class="text-slate-600">|</span>
+        <span id="current-week-banner" class="text-slate-200 font-medium flex items-center gap-1">
+          <i class="fa-solid fa-calendar-check text-indigo-400"></i>
+          <span>Cargando sincronización de fechas lectivas...</span>
+        </span>
+      </div>
+      <div class="flex items-center space-x-4">
+        <span class="text-slate-300 font-semibold flex items-center gap-1.5">
+          <i class="fa-solid fa-school text-amber-400"></i> Eight Academy Ecuador
+        </span>
+        <span id="saved-indicator" class="text-emerald-400 font-bold hidden flex items-center gap-1 bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-800">
+          <i class="fa-solid fa-floppy-disk"></i> Guardado
+        </span>
+        <div id="firebase-user-box" class="flex items-center gap-2">
+          <span id="firebase-status" class="text-[10px] font-bold text-amber-300 bg-amber-950/50 border border-amber-800 px-2 py-1 rounded-lg">
+            <i class="fa-solid fa-database mr-1"></i> Firebase sin configurar
+          </span>
+          <button id="firebase-login-btn" type="button" onclick="loginTeacher()" class="px-3 py-1.5 bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold text-[10px] rounded-lg transition-all">
+            <i class="fa-brands fa-google mr-1"></i> Ingresar
+          </button>
+          <button id="firebase-logout-btn" type="button" onclick="logoutTeacher()" class="hidden px-3 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-400/30 text-rose-200 font-bold text-[10px] rounded-lg transition-all">
+            Salir
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="flex-1 flex flex-col max-w-7xl w-full mx-auto my-0 sm:my-4 gap-4 px-2 sm:px-4">
+
+    <!-- Top Navigation Tabs Bar -->
+    <nav class="bg-white rounded-2xl p-2 shadow-sm border border-slate-200/80 flex flex-wrap items-center justify-between gap-2 no-print">
+      <div class="flex items-center space-x-2">
+        <div class="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white font-black text-xl shadow-md shadow-indigo-500/30 ml-1">
+          <i class="fa-solid fa-graduation-cap"></i>
+        </div>
+        <div>
+          <h1 class="font-extrabold text-sm text-slate-900 tracking-tight leading-none">Eight Academy</h1>
+          <p class="text-[10px] text-indigo-600 font-bold uppercase tracking-wider">Planificador ERCA & IA</p>
+        </div>
+      </div>
+
+      <!-- Navigation Tabs -->
+      <div class="flex items-center space-x-1 overflow-x-auto custom-scrollbar py-1">
+        <button onclick="switchTab('tab-erca')" id="btn-tab-erca" class="tab-btn px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 bg-indigo-600 text-white shadow-sm">
+          <i class="fa-solid fa-calendar-week"></i>
+          <span>Plan Semanal ERCA</span>
+        </button>
+        <button onclick="switchTab('tab-mapeo')" id="btn-tab-mapeo" class="tab-btn px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 text-slate-600 hover:bg-slate-100">
+          <i class="fa-solid fa-map"></i>
+          <span>Mapeo Curricular Anual</span>
+        </button>
+        <button onclick="switchTab('tab-ia')" id="btn-tab-ia" class="tab-btn px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 text-slate-600 hover:bg-slate-100">
+          <i class="fa-solid fa-wand-magic-sparkles text-purple-600"></i>
+          <span>Asistente IA Gemini</span>
+        </button>
+        <button onclick="switchTab('tab-nee')" id="btn-tab-nee" class="tab-btn px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 text-slate-600 hover:bg-slate-100">
+          <i class="fa-solid fa-brain text-emerald-600"></i>
+          <span>Estrategias NEE / DUA</span>
+        </button>
+      </div>
+    </nav>
+
+    <div class="flex-1 flex flex-col md:flex-row gap-4 min-w-0">
+
+      <aside class="w-full md:w-80 bg-slate-900 text-white rounded-2xl p-5 shadow-xl flex flex-col justify-between space-y-6 no-print border border-slate-800">
+        <div class="space-y-5">
+          
+          <div class="border-b border-slate-800 pb-3 flex items-center justify-between">
+            <span class="text-xs font-extrabold uppercase tracking-wider text-indigo-400 flex items-center gap-1.5">
+              <i class="fa-solid fa-sliders"></i> Configuración Lectiva
+            </span>
+            <span id="sublevel-badge" class="text-[10px] text-slate-400 bg-slate-800 px-2 py-0.5 rounded">EGB Elemental / Media</span>
+          </div>
+
+          <!-- Grado EGB Selector -->
+          <div class="space-y-1.5">
+            <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider">
+              <i class="fa-solid fa-children text-indigo-400 mr-1"></i> Grado:
+            </label>
+            <select id="select-grade" onchange="changeGrade()" class="w-full bg-slate-800 border border-slate-700 text-slate-100 text-xs rounded-xl p-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-none font-medium">
+              <option value="3">3.º de EGB</option>
+              <option value="4" selected>4.º de EGB</option>
+              <option value="5">5.º de EGB</option>
+              <option value="6">6.º de EGB</option>
+              <option value="7">7.º de EGB</option>
+            </select>
+          </div>
+
+          <!-- Asignatura Selector -->
+          <div class="space-y-1.5">
+            <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider">
+              <i class="fa-solid fa-book-bookmark text-indigo-400 mr-1"></i> Asignatura:
+            </label>
+            <select id="select-subject" onchange="changeSubject()" class="w-full bg-slate-800 border border-slate-700 text-slate-100 text-xs rounded-xl p-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-none font-medium">
+              <option value="Lengua">Lengua y Literatura</option>
+              <option value="Matematica">Matemática</option>
+              <option value="Naturales">Ciencias Naturales</option>
+              <option value="Sociales">Estudios Sociales</option>
+              <option value="Ingles">Inglés</option>
+              <option value="ECA">Educación Cultural y Artística</option>
+              <option value="EducacionFisica">Educación Física</option>
+            </select>
+          </div>
+
+          <!-- Semana Lectiva Selector -->
+          <div class="space-y-1.5">
+            <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider">
+              <i class="fa-solid fa-clock-rotate-left text-indigo-400 mr-1"></i> Semana de Planificación:
+            </label>
+            <select id="week-select" onchange="changeWeek()" class="w-full bg-slate-800 border border-slate-700 text-slate-100 text-xs rounded-xl p-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-none font-medium custom-scrollbar">
+              <!-- JS Populated -->
+            </select>
+          </div>
+
+          <!-- NEE Filter Selector -->
+          <div class="space-y-1.5">
+            <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider">
+              <i class="fa-solid fa-hands-holding-child text-purple-400 mr-1"></i> Perfil de Necesidad Educativa:
+            </label>
+            <select id="nee-filter" onchange="renderNEE()" class="w-full bg-slate-800 border border-slate-700 text-slate-100 text-xs rounded-xl p-2.5 focus:ring-2 focus:ring-purple-500 focus:outline-none font-medium">
+              <option value="ALL">Integrado (TDAH + TDA + Dislexia)</option>
+              <option value="TDAH">Solo TDAH (Hiperactividad e Impulsividad)</option>
+              <option value="TDA">Solo TDA (Inatención Sostenida)</option>
+              <option value="DISLEXIA">Dislexia / Dificultad Lectoescritora</option>
+            </select>
+          </div>
+
+          <!-- TIC Tools Platform Selector -->
+          <div class="space-y-1.5">
+            <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider">
+              <i class="fa-solid fa-laptop-code text-emerald-400 mr-1"></i> Ecosistema Digital TIC:
+            </label>
+            <select id="tech-filter" onchange="updateTechTips()" class="w-full bg-slate-800 border border-slate-700 text-slate-100 text-xs rounded-xl p-2.5 focus:ring-2 focus:ring-emerald-500 focus:outline-none font-medium">
+              <option value="ALL">Ecosistema Eight (Teams + Canvas + Gamificación)</option>
+              <option value="Teams">Microsoft Teams / Class Notebook</option>
+              <option value="Canvas">Canvas LMS (Módulos & Cuestionarios)</option>
+              <option value="Gamification">Gamificación (Quizizz / Mentimeter / Kahoot)</option>
+            </select>
+          </div>
+
+          <!-- Mapeo de Contenidos del Docente -->
+          <div class="pt-3 border-t border-slate-800 space-y-2">
+            <span class="block text-xs font-bold text-slate-400 uppercase tracking-wider">
+              <i class="fa-solid fa-map-location-dot text-emerald-400 mr-1"></i> Mi Mapeo de Contenidos:
+            </span>
+            <button type="button" onclick="openMappingFilePicker()" class="w-full bg-gradient-to-r from-indigo-600/30 to-emerald-600/20 hover:from-indigo-600/40 hover:to-emerald-600/30 text-white border border-dashed border-indigo-400/60 hover:border-emerald-400 rounded-xl p-3 text-xs flex items-center justify-center space-x-2 transition-all shadow-sm">
+              <i class="fa-solid fa-cloud-arrow-up text-emerald-300 text-base"></i>
+              <span class="font-extrabold">Subir mi Mapeo de Contenidos</span>
+            </button>
+            <input type="file" id="excel-file-input" accept=".xlsx,.xls,.csv,.json,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv,application/json" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0;" onchange="handleFileUpload(event)">
+            <div id="mapping-upload-status" class="hidden bg-emerald-950/50 border border-emerald-700/50 rounded-lg px-2.5 py-2 text-[10px] text-emerald-200 leading-relaxed">
+              <i class="fa-solid fa-circle-check mr-1"></i>
+              <span id="mapping-upload-status-text">Mapeo cargado.</span>
+            </div>
+            <p class="text-[9px] text-slate-500 leading-relaxed">
+              Compatible con Excel (.xlsx/.xls), CSV y JSON. La app reconocerá automáticamente Semana, Tema, Unidad, Trimestre, Fechas, Competencias y Períodos.
+            </p>
+          </div>
+
+        </div>
+
+        <!-- Sidebar Action Buttons -->
+        <div class="pt-4 border-t border-slate-800 space-y-2">
+          <button onclick="goToCurrentAcademicWeek()" class="w-full bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 font-semibold text-xs rounded-xl py-2.5 px-3 transition-all flex items-center justify-center space-x-2">
+            <i class="fa-solid fa-crosshairs text-emerald-400"></i>
+            <span>Ir a la Semana Actual</span>
+          </button>
+
+          <button onclick="exportPlanJSON()" class="w-full bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 font-semibold text-xs rounded-xl py-2.5 px-3 transition-all flex items-center justify-center space-x-2">
+            <i class="fa-solid fa-download text-indigo-400"></i>
+            <span>Exportar Respaldos JSON</span>
+          </button>
+        </div>
+      </aside>
+
+      <main id="tab-erca" class="tab-content flex-1 flex flex-col space-y-5 min-w-0">
+
+        <!-- Header Card de la Semana -->
+        <header class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm print-card flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <div class="flex items-center space-x-2 mb-1.5 flex-wrap gap-y-1">
+              <span id="badge-trimestre" class="bg-indigo-100 text-indigo-800 text-[11px] font-extrabold px-3 py-0.5 rounded-full uppercase tracking-wider border border-indigo-200">
+                PRIMER TRIMESTRE
+              </span>
+              <span id="badge-unidad" class="bg-purple-100 text-purple-800 text-[11px] font-extrabold px-3 py-0.5 rounded-full uppercase tracking-wider border border-purple-200">
+                UNIDAD 1
+              </span>
+              <span id="badge-periods" class="bg-slate-100 text-slate-700 text-[11px] font-semibold px-2.5 py-0.5 rounded-full border border-slate-200">
+                <i class="fa-regular fa-clock mr-1 text-slate-500"></i> 6 Periodos Semanales
+              </span>
+            </div>
+            <h2 id="view-week-title" class="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+              Semana 1: Diagnóstico y Bienvenida
+            </h2>
+            <p id="view-week-dates" class="text-xs font-medium text-slate-500 mt-1 flex items-center gap-1.5">
+              <i class="fa-regular fa-calendar-days text-indigo-500"></i>
+              <span>Fechas Lectivas: 07 sep - 11 sep 2026</span>
+            </p>
+          </div>
+
+          <!-- Botones de Acción Inmediata -->
+          <div class="flex items-center gap-2 no-print self-start md:self-auto flex-wrap">
+            <button onclick="resetCurrentWeek()" class="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-xl transition-all border border-slate-200 flex items-center gap-1.5">
+              <i class="fa-solid fa-rotate-left text-slate-500"></i>
+              <span>Restablecer</span>
+            </button>
+
+            <button onclick="toggleEditMapping()" class="px-3.5 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold text-xs rounded-xl transition-all border border-indigo-200 flex items-center gap-1.5">
+              <i class="fa-solid fa-pen-to-square text-indigo-600"></i>
+              <span id="edit-btn-text">Editar Mapeo</span>
+            </button>
+
+            <button onclick="window.print()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs rounded-xl transition-all shadow-md shadow-indigo-100 flex items-center gap-1.5">
+              <i class="fa-solid fa-print"></i>
+              <span>Imprimir / PDF</span>
+            </button>
+          </div>
+        </header>
+
+        <section class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm print-card space-y-4">
+          <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+            <h3 class="text-xs font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+              <i class="fa-solid fa-bullseye text-indigo-600"></i>
+              <span>Mapeo Curricular Oficial & Destrezas (DCD)</span>
+            </h3>
+            <span class="text-[11px] text-slate-400 font-medium no-print">
+              <i class="fa-solid fa-circle-info text-indigo-400"></i> Estándar Ministerio de Educación Ecuador
+            </span>
+          </div>
+
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <!-- DCD Text Box -->
+            <div class="lg:col-span-2 space-y-2">
+              <span class="text-xs font-bold text-slate-500 uppercase tracking-wider block">
+                Destrezas con Criterios de Desempeño (DCD):
+              </span>
+              <div id="dcd-container" class="bg-slate-50 border border-slate-200 rounded-xl p-4 text-xs sm:text-sm text-slate-800 leading-relaxed font-medium whitespace-pre-line border-l-4 border-l-indigo-600">
+                <!-- JS Render -->
+              </div>
+            </div>
+
+            <!-- Competencias y Tema -->
+            <div class="space-y-3">
+              <div>
+                <span class="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                  <i class="fa-solid fa-star text-amber-500 mr-1"></i> Competencias Afectadas:
+                </span>
+                <div id="comp-container" class="bg-amber-50/70 border border-amber-200 rounded-xl p-3 text-xs font-bold text-amber-900 leading-relaxed">
+                  <!-- JS Render -->
+                </div>
+              </div>
+
+              <div>
+                <span class="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                  <i class="fa-solid fa-lightbulb text-emerald-600 mr-1"></i> Tema Principal:
+                </span>
+                <div id="theme-container" class="bg-emerald-50/70 border border-emerald-200 rounded-xl p-3 text-xs font-black text-emerald-900">
+                  <!-- JS Render -->
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+
+          <!-- Secuencia Didáctica ERCA (2 columnas) -->
+          <div class="lg:col-span-2 space-y-5">
+            <div class="flex items-center justify-between">
+              <h3 class="text-base font-extrabold text-slate-900 flex items-center gap-2">
+                <i class="fa-solid fa-layer-group text-indigo-600"></i>
+                <span>Ciclo de Aprendizaje Semanal</span>
+              </h3>
+              <span class="text-xs text-slate-400 no-print font-medium">Actividades alineadas al tema semanal, editables por el docente</span>
+            </div>
+
+            <!-- Fase 1: Activación -->
+            <div class="bg-white rounded-2xl border border-rose-200 p-4 sm:p-5 shadow-sm print-card relative overflow-hidden space-y-3">
+              <div class="w-1.5 h-full bg-rose-500 absolute left-0 top-0"></div>
+              <div class="flex items-center justify-between pl-2">
+                <div class="flex items-center space-x-2">
+                  <span class="w-6 h-6 rounded-lg bg-rose-100 text-rose-800 flex items-center justify-center font-black text-xs">1</span>
+                  <h4 class="font-extrabold text-slate-800 text-xs sm:text-sm uppercase tracking-wide">1. Activación</h4>
+                </div>
+                <span class="bg-rose-50 text-rose-700 text-[10px] font-bold px-2.5 py-0.5 rounded-md border border-rose-200">
+                  <i class="fa-solid fa-bolt mr-1 text-rose-500"></i> Enganche (5-8 min)
+                </span>
+              </div>
+              <textarea id="erca-activation" oninput="saveCurrentState()" rows="4" class="w-full bg-slate-50 hover:bg-white focus:bg-white border border-slate-200 rounded-xl p-3 text-xs sm:text-sm text-slate-700 leading-relaxed focus:ring-2 focus:ring-rose-400 focus:border-rose-400 outline-none transition-all resize-y" placeholder="Actividad breve y motivadora vinculada con el tema semanal..."></textarea>
+            </div>
+
+            <!-- Fase 2: Anticipación -->
+            <div class="bg-white rounded-2xl border border-amber-200 p-4 sm:p-5 shadow-sm print-card relative overflow-hidden space-y-3">
+              <div class="w-1.5 h-full bg-amber-500 absolute left-0 top-0"></div>
+              <div class="flex items-center justify-between pl-2">
+                <div class="flex items-center space-x-2">
+                  <span class="w-6 h-6 rounded-lg bg-amber-100 text-amber-800 flex items-center justify-center font-black text-xs">2</span>
+                  <h4 class="font-extrabold text-slate-800 text-xs sm:text-sm uppercase tracking-wide">2. Anticipación</h4>
+                </div>
+                <span class="bg-amber-50 text-amber-700 text-[10px] font-bold px-2.5 py-0.5 rounded-md border border-amber-200">
+                  <i class="fa-solid fa-comments mr-1 text-amber-500"></i> Saberes previos (8-10 min)
+                </span>
+              </div>
+              <textarea id="erca-anticipation" oninput="saveCurrentState()" rows="4" class="w-full bg-slate-50 hover:bg-white focus:bg-white border border-slate-200 rounded-xl p-3 text-xs sm:text-sm text-slate-700 leading-relaxed focus:ring-2 focus:ring-amber-400 focus:border-amber-400 outline-none transition-all resize-y" placeholder="Preguntas, predicciones y recuperación de conocimientos previos..."></textarea>
+            </div>
+
+            <!-- Fase 3: Construcción -->
+            <div class="bg-white rounded-2xl border border-blue-200 p-4 sm:p-5 shadow-sm print-card relative overflow-hidden space-y-3">
+              <div class="w-1.5 h-full bg-blue-500 absolute left-0 top-0"></div>
+              <div class="flex items-center justify-between pl-2">
+                <div class="flex items-center space-x-2">
+                  <span class="w-6 h-6 rounded-lg bg-blue-100 text-blue-800 flex items-center justify-center font-black text-xs">3</span>
+                  <h4 class="font-extrabold text-slate-800 text-xs sm:text-sm uppercase tracking-wide">3. Construcción</h4>
+                </div>
+                <span class="bg-blue-50 text-blue-700 text-[10px] font-bold px-2.5 py-0.5 rounded-md border border-blue-200">
+                  <i class="fa-solid fa-cubes mr-1 text-blue-500"></i> Desarrollo guiado (20-25 min)
+                </span>
+              </div>
+              <textarea id="erca-construction" oninput="saveCurrentState()" rows="5" class="w-full bg-slate-50 hover:bg-white focus:bg-white border border-slate-200 rounded-xl p-3 text-xs sm:text-sm text-slate-700 leading-relaxed focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none transition-all resize-y" placeholder="Modelado, explicación, práctica guiada y construcción del aprendizaje..."></textarea>
+              <div class="flex flex-wrap justify-end gap-2 no-print">
+                <button type="button" onclick="generatePhaseActivity('construction')" class="px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-xl text-[11px] font-extrabold transition-all flex items-center gap-1.5">
+                  <i class="fa-solid fa-wand-magic-sparkles"></i>
+                  Generar actividad según el tema
+                </button>
+              </div>
+            </div>
+
+            <!-- Fase 4: Consolidación -->
+            <div class="bg-white rounded-2xl border border-emerald-200 p-4 sm:p-5 shadow-sm print-card relative overflow-hidden space-y-3">
+              <div class="w-1.5 h-full bg-emerald-500 absolute left-0 top-0"></div>
+              <div class="flex items-center justify-between pl-2">
+                <div class="flex items-center space-x-2">
+                  <span class="w-6 h-6 rounded-lg bg-emerald-100 text-emerald-800 flex items-center justify-center font-black text-xs">4</span>
+                  <h4 class="font-extrabold text-slate-800 text-xs sm:text-sm uppercase tracking-wide">4. Consolidación</h4>
+                </div>
+                <span class="bg-emerald-50 text-emerald-700 text-[10px] font-bold px-2.5 py-0.5 rounded-md border border-emerald-200">
+                  <i class="fa-solid fa-circle-check mr-1 text-emerald-500"></i> Evidencia / cierre (10 min)
+                </span>
+              </div>
+              <textarea id="erca-consolidation" oninput="saveCurrentState()" rows="4" class="w-full bg-slate-50 hover:bg-white focus:bg-white border border-slate-200 rounded-xl p-3 text-xs sm:text-sm text-slate-700 leading-relaxed focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 outline-none transition-all resize-y" placeholder="Reto final, producto, ejercicio de aplicación o ticket de salida..."></textarea>
+              <div class="flex flex-wrap justify-end gap-2 no-print">
+                <button type="button" onclick="generatePhaseActivity('consolidation')" class="px-3 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-xl text-[11px] font-extrabold transition-all flex items-center gap-1.5">
+                  <i class="fa-solid fa-puzzle-piece"></i>
+                  Generar actividad según el tema
+                </button>
+              </div>
+            </div>
+
+          </div>
+
+          <div class="space-y-5">
+            
+            <div class="bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 rounded-2xl p-5 text-white shadow-xl space-y-4 print-card border border-indigo-900/60">
+              <div class="flex items-center justify-between border-b border-indigo-800/60 pb-3">
+                <h3 class="font-extrabold text-sm flex items-center gap-2">
+                  <i class="fa-solid fa-brain text-purple-400"></i>
+                  <span>Adaptaciones NEE / DUA</span>
+                </h3>
+                <span id="nee-profile-tag" class="bg-purple-500/30 text-purple-200 text-[10px] uppercase font-black px-2 py-0.5 rounded border border-purple-400/30">
+                  Integrado
+                </span>
+              </div>
+
+              <p class="text-xs text-slate-300 leading-relaxed">
+                Estrategias de mediación sugeridas según el perfil seleccionado:
+              </p>
+
+              <!-- Listado Dinámico de Estrategias NEE -->
+              <div id="nee-strategies-container" class="space-y-2.5">
+                <!-- JS Render -->
+              </div>
+
+              <!-- Anotaciones Específicas por Estudiante -->
+              <div class="pt-2 border-t border-indigo-800/60">
+                <label class="block text-xs font-bold text-purple-300 uppercase tracking-wider mb-2">
+                  <i class="fa-solid fa-user-pen mr-1"></i> Observaciones para Estudiantes NEE:
+                </label>
+                <textarea id="nee-custom-notes" oninput="saveCurrentState()" rows="3" class="w-full bg-slate-950/80 border border-indigo-800 text-purple-100 placeholder-slate-500 text-xs rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-purple-400 transition-all" placeholder="Ejemplo: Mateo S. requiere 30% más tiempo en pruebas digitales; Sofía P. sustentará de forma oral..."></textarea>
+              </div>
+            </div>
+
+            <!-- Estándares de Evaluación Eight Academy -->
+            <div class="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 shadow-sm space-y-3 no-print">
+              <h4 class="font-extrabold text-slate-800 text-xs uppercase tracking-wider flex items-center gap-2">
+                <i class="fa-solid fa-shield-halved text-indigo-600"></i>
+                <span>Estándares Eight Academy</span>
+              </h4>
+              <ul class="text-xs text-slate-600 space-y-2 list-disc list-inside leading-relaxed">
+                <li><strong>Formativo:</strong> Toda actividad ERCA cuenta con retroalimentación en Canvas/Teams.</li>
+                <li><strong>Inclusivo:</strong> Uso de herramientas accesibles (Lector Inmersivo de Microsoft).</li>
+                <li><strong>Criterios DCD:</strong> Evaluación alineada a las competencias comunicacionales y digitales.</li>
+              </ul>
+            </div>
+
+          </div>
+
+        </div>
+
+      </main>
+
+      <main id="tab-mapeo" class="tab-content flex-1 hidden flex-col space-y-5 min-w-0">
+        <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+            <div>
+              <h2 class="text-xl font-black text-slate-900 tracking-tight">
+                Mapeo Curricular Anual (40 Semanas - Año Lectivo 2026-2027)
+              </h2>
+              <p class="text-xs font-medium text-slate-500 mt-1">
+                Visualización general de Destrezas con Criterios de Desempeño (DCD) organizadas por semanas y trimestres.
+              </p>
+            </div>
+            <div class="flex items-center gap-2">
+              <input type="text" id="mapeo-search" oninput="filterMapeoTable()" placeholder="Buscar DCD o tema..." class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-indigo-500 outline-none w-48 sm:w-64">
+            </div>
+          </div>
+
+          <div class="overflow-x-auto custom-scrollbar border border-slate-200 rounded-xl">
+            <table class="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr class="bg-slate-900 text-white uppercase text-[10px] tracking-wider">
+                  <th class="p-3 font-extrabold border-b border-slate-800">Sem.</th>
+                  <th class="p-3 font-extrabold border-b border-slate-800">Trimestre / Unidad</th>
+                  <th class="p-3 font-extrabold border-b border-slate-800">Fechas Lectivas</th>
+                  <th class="p-3 font-extrabold border-b border-slate-800">Tema Principal</th>
+                  <th class="p-3 font-extrabold border-b border-slate-800 min-w-[280px]">Destreza con Criterio de Desempeño (DCD)</th>
+                  <th class="p-3 font-extrabold border-b border-slate-800">Acción</th>
+                </tr>
+              </thead>
+              <tbody id="mapeo-table-body" class="divide-y divide-slate-200 bg-white">
+                <!-- JS Render -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </main>
+
+      <main id="tab-ia" class="tab-content flex-1 hidden flex-col space-y-5 min-w-0">
+        <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-5">
+          <div class="flex items-center space-x-3 border-b border-slate-100 pb-4">
+            <div class="w-12 h-12 bg-purple-100 text-purple-700 rounded-2xl flex items-center justify-center font-black text-2xl shadow-inner">
+              <i class="fa-solid fa-wand-magic-sparkles"></i>
+            </div>
+            <div>
+              <h2 class="text-xl font-black text-slate-900 tracking-tight">Asistente Pedagógico IA Gemini</h2>
+              <p class="text-xs font-medium text-slate-500">
+                Genera secuencias didácticas completas, rúbricas de evaluación o adaptaciones NEE en segundos.
+              </p>
+            </div>
+          </div>
+
+          <!-- Prompt Box -->
+          <div class="space-y-3">
+            <label class="block text-xs font-extrabold text-slate-700 uppercase tracking-wider">
+              Instrucción para el Asistente IA:
+            </label>
+            <div class="relative">
+              <textarea id="ai-prompt-input" rows="4" class="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 text-xs sm:text-sm text-slate-800 focus:ring-2 focus:ring-purple-500 focus:bg-white outline-none transition-all" placeholder="Ejemplo: Diseña una secuencia ERCA completa de 3 periodos para enseñar la DCD de cuento fantástico en 4to EGB, incluyendo 1 juego gamificado en Quizizz y 1 adaptación para TDAH..."></textarea>
+            </div>
+
+            <!-- Fast Prompt Suggestions -->
+            <div class="flex flex-wrap items-center gap-2 pt-1">
+              <span class="text-[11px] font-bold text-slate-400">Sugerencias rápidas:</span>
+              <button onclick="setPromptTemplate('erca')" class="px-3 py-1 bg-purple-50 hover:bg-purple-100 text-purple-700 font-semibold text-[11px] rounded-lg border border-purple-200 transition-all">
+                ✨ Plan ERCA Completo
+              </button>
+              <button onclick="setPromptTemplate('rubric')" class="px-3 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold text-[11px] rounded-lg border border-indigo-200 transition-all">
+                📊 Rúbrica de Evaluación
+              </button>
+              <button onclick="setPromptTemplate('nee')" class="px-3 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-semibold text-[11px] rounded-lg border border-emerald-200 transition-all">
+                🧠 Plan de Apoyo DUA / NEE
+              </button>
+            </div>
+
+            <div class="flex justify-end pt-2">
+              <button onclick="executeGeminiCall()" id="btn-generate-ai" class="px-6 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-extrabold text-xs rounded-xl shadow-lg shadow-purple-200 transition-all flex items-center gap-2">
+                <i class="fa-solid fa-paper-plane"></i>
+                <span>Generar Propuesta Pedagógica</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Loading Indicator -->
+          <div id="ai-loading" class="hidden py-8 text-center space-y-3">
+            <div class="inline-block w-8 h-8 border-4 border-purple-600 border-t-transparent rounded-full animate-spin"></div>
+            <p class="text-xs font-bold text-purple-700 animate-pulse">Conectando con Gemini IA y procesando currículo oficial...</p>
+          </div>
+
+          <!-- Response Output Box -->
+          <div id="ai-response-container" class="hidden space-y-3 pt-4 border-t border-slate-100">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                <i class="fa-solid fa-robot text-purple-600"></i> Propuesta Generada por Gemini:
+              </span>
+              <button onclick="copyAIResponse()" class="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-bold rounded-lg border border-slate-200 transition-all flex items-center gap-1">
+                <i class="fa-solid fa-copy"></i> Copiar Texto
+              </button>
+            </div>
+            <div id="ai-response-text" class="bg-slate-900 text-slate-100 p-5 rounded-2xl text-xs sm:text-sm leading-relaxed whitespace-pre-wrap font-mono border border-slate-800">
+              <!-- AI Text Result -->
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <main id="tab-nee" class="tab-content flex-1 hidden flex-col space-y-5 min-w-0">
+        <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-5">
+          <div class="flex items-center space-x-3 border-b border-slate-100 pb-4">
+            <div class="w-12 h-12 bg-emerald-100 text-emerald-700 rounded-2xl flex items-center justify-center font-black text-2xl shadow-inner">
+              <i class="fa-solid fa-hands-holding-child"></i>
+            </div>
+            <div>
+              <h2 class="text-xl font-black text-slate-900 tracking-tight">Catálogo de Estrategias NEE & DUA</h2>
+              <p class="text-xs font-medium text-slate-500">
+                Guía oficial de adaptación metodológica de Grado 1 y Grado 2 para el aula de Eight Academy.
+              </p>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            
+            <!-- Card TDAH -->
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-3">
+              <div class="flex items-center space-x-2 border-b border-slate-200 pb-2">
+                <i class="fa-solid fa-bolt text-amber-500 text-lg"></i>
+                <h3 class="font-extrabold text-sm text-slate-800">TDAH (Hiperactividad e Impulsividad)</h3>
+              </div>
+              <ul class="text-xs text-slate-600 space-y-2 list-disc list-inside leading-relaxed">
+                <li>Fragmentar tareas complejas en pasos de no más de 10 minutos.</li>
+                <li>Implementar pausas activas motoras entre la fase de Conceptualización y Aplicación.</li>
+                <li>Uso de temporizadores visuales en la pantalla compartida de Microsoft Teams.</li>
+                <li>Ubicación estratégica en el aula lejos de factores de distracción directa.</li>
+              </ul>
+            </div>
+
+            <!-- Card TDA -->
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-3">
+              <div class="flex items-center space-x-2 border-b border-slate-200 pb-2">
+                <i class="fa-solid fa-eye text-blue-500 text-lg"></i>
+                <h3 class="font-extrabold text-sm text-slate-800">TDA (Inatención y Atención Sostenida)</h3>
+              </div>
+              <ul class="text-xs text-slate-600 space-y-2 list-disc list-inside leading-relaxed">
+                <li>Proporcionar guías con apoyos pictográficos o resúmenes organizados en esquemas.</li>
+                <li>Acompañar las consignas escritas en Canvas con audios cortos explicativos.</li>
+                <li>Permitir el uso de sintetizadores de voz o Lector Inmersivo.</li>
+                <li>Establecer contacto visual directo antes de dar una instrucción clave.</li>
+              </ul>
+            </div>
+
+            <!-- Card Dislexia -->
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-3">
+              <div class="flex items-center space-x-2 border-b border-slate-200 pb-2">
+                <i class="fa-solid fa-spell-check text-purple-500 text-lg"></i>
+                <h3 class="font-extrabold text-sm text-slate-800">Dislexia / Dificultad Lectoescritora</h3>
+              </div>
+              <ul class="text-xs text-slate-600 space-y-2 list-disc list-inside leading-relaxed">
+                <li>Priorizar la evaluación oral o mediante videos cortos sobre pruebas escritas extensas.</li>
+                <li>Adaptar tipografías a fuentes de alta legibilidad (Inter, Arial, OpenDyslexic).</li>
+                <li>No penalizar la ortografía en respuestas espontáneas de desarrollo.</li>
+                <li>Otorgar un 30% a 50% de tiempo adicional en evaluaciones sumativas.</li>
+              </ul>
+            </div>
+
+            <!-- Card Altas Capacidades -->
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-3">
+              <div class="flex items-center space-x-2 border-b border-slate-200 pb-2">
+                <i class="fa-solid fa-rocket text-emerald-500 text-lg"></i>
+                <h3 class="font-extrabold text-sm text-slate-800">Altas Capacidades / Enriquecimiento</h3>
+              </div>
+              <ul class="text-xs text-slate-600 space-y-2 list-disc list-inside leading-relaxed">
+                <li>Asignar proyectos de investigación o creación de contenido multimedia complementario.</li>
+                <li>Promover el rol de monitor tutor de pares en el trabajo en equipo.</li>
+                <li>Planteamiento de dilemas éticos o retos con mayor nivel de abstracción.</li>
+              </ul>
+            </div>
+
+          </div>
+        </div>
+      </main>
+
+    </div>
+
+  </div>
+
+  <footer class="bg-white border-t border-slate-200 mt-8 py-5 text-center text-xs text-slate-500 no-print">
+    <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row justify-between items-center gap-2">
+      <p>© 2026 - 2027 Unidad Educativa Particular Eight Academy - Coordinación Pedagógica</p>
+      <p class="text-slate-400 font-medium">Sistema Adaptativo de Planificación Curricular & Asistente IA v4.0</p>
+    </div>
+  </footer>
+  <script src="js/data.js"></script>
+  <script src="js/app.js"></script>
+  <script type="module" src="js/firebase.js"></script>
+</body>
+</html>
